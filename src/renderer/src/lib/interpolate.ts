@@ -34,6 +34,9 @@ export function makeLookup(scopes: EnvVariable[][]): VarLookup {
   }
 }
 
+/** 内置动态变量名集合（供 URL 高亮等场景判断变量是否可解析） */
+export const DYNAMIC_VAR_NAMES: ReadonlySet<string> = new Set(Object.keys(DYNAMIC))
+
 /** 将 {{var}} 替换为变量值，支持最多 5 层嵌套引用；未定义的变量原样保留 */
 export function interpolate(text: string, lookup: VarLookup, depth = 5): string {
   if (!text || !text.includes('{{')) return text

@@ -13,6 +13,7 @@ const api: RendererApi = {
   writeFile: (req: { path: string; content: string; encoding?: 'utf8' | 'base64' }) =>
     ipcRenderer.invoke('fs:writeFile', req),
   openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  openDataDir: () => ipcRenderer.invoke('shell:openDataDir'),
   appInfo: () => ipcRenderer.invoke('app:info'),
   winMinimize: () => ipcRenderer.send('win:minimize'),
   winToggleMaximize: () => ipcRenderer.send('win:toggleMaximize'),
@@ -23,7 +24,14 @@ const api: RendererApi = {
     ipcRenderer.on('win:maximizedChanged', listener)
     return () => ipcRenderer.removeListener('win:maximizedChanged', listener)
   },
-  setWindowTitle: (title: string) => ipcRenderer.send('win:setTitle', title)
+  setWindowTitle: (title: string) => ipcRenderer.send('win:setTitle', title),
+  winShow: () => ipcRenderer.send('win:show'),
+  zoomIn: () => ipcRenderer.send('win:zoomIn'),
+  zoomOut: () => ipcRenderer.send('win:zoomOut'),
+  zoomReset: () => ipcRenderer.send('win:zoomReset'),
+  toggleFullscreen: () => ipcRenderer.send('win:toggleFullscreen'),
+  setTitleBarOverlay: (opts: { color: string; symbolColor: string }) => ipcRenderer.send('win:setTitleBarOverlay', opts),
+  setLaunchAtStartup: (enabled: boolean) => ipcRenderer.invoke('app:setLaunchAtStartup', enabled)
 }
 
 contextBridge.exposeInMainWorld('api', api)

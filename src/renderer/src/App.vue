@@ -41,6 +41,8 @@ onMounted(async () => {
   tabs.hydrateSession(data.sessionTabs ?? [])
   const info = await window.api.appInfo()
   app.version = info.version
+  app.platform = info.platform
+  app.launchAtStartup = info.launchAtStartup
   hydrated.value = true
 })
 
@@ -57,6 +59,7 @@ watch(
 /* ---------- 响应区分隔条拖拽 ---------- */
 let splitTop = 0
 let splitBottom = 0
+let splitEl: HTMLElement | null = null
 
 function onSplitMove(e: MouseEvent): void {
   const span = splitBottom - splitTop
@@ -68,16 +71,19 @@ function onSplitMove(e: MouseEvent): void {
 function onSplitUp(): void {
   document.removeEventListener('mousemove', onSplitMove)
   document.removeEventListener('mouseup', onSplitUp)
+  splitEl?.classList.remove('dragging')
   document.body.style.cursor = ''
 }
 
-function startSplit(): void {
+function startSplit(e: MouseEvent): void {
   const area = document.querySelector('.editor-response-area')
   const editor = document.querySelector('.editor-area')
   if (!area || !editor) return
   // 以编辑区顶部（参数/请求头标签栏之下）为基准，避免把标签栏高度算进比例
   splitTop = editor.getBoundingClientRect().top
   splitBottom = area.getBoundingClientRect().bottom
+  splitEl = (e.currentTarget as HTMLElement) ?? null
+  splitEl?.classList.add('dragging')
   document.body.style.cursor = 'row-resize'
   document.addEventListener('mousemove', onSplitMove)
   document.addEventListener('mouseup', onSplitUp)

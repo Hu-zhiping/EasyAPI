@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Component } from 'vue'
 import {
+  Check,
+  ClipboardCopy,
   Code2,
   Cookie,
   Copy,
   Download,
   FilePlus,
+  FolderOpen,
   Globe,
+  History,
   Info,
+  Keyboard,
+  Layers,
   Maximize,
   Minimize,
   Save,
@@ -16,12 +22,16 @@ import {
   Sun,
   Terminal,
   Upload,
-  X
+  X,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
 import { useTabsStore } from '../stores/tabs'
 import { useCollectionsStore } from '../stores/collections'
 import { useEnvsStore } from '../stores/envs'
+import { buildPayload } from '../lib/http'
+import { stringifyCurl } from '../lib/curl'
 
 interface MenuItem {
   label?: string
@@ -29,6 +39,8 @@ interface MenuItem {
   icon?: string
   danger?: boolean
   disabled?: boolean
+  /** 勾选态（左侧 ✓，用于开关型条目） */
+  checked?: boolean
   sep?: boolean
   action?: () => void
 }
@@ -43,6 +55,7 @@ const ICONS: Record<string, Component> = {
   'file-plus': FilePlus,
   save: Save,
   copy: Copy,
+  'copy-curl': ClipboardCopy,
   upload: Upload,
   download: Download,
   close: X,
@@ -54,8 +67,16 @@ const ICONS: Record<string, Component> = {
   cookie: Cookie,
   min: Minimize,
   max: Maximize,
-  info: Info
+  info: Info,
+  'zoom-in': ZoomIn,
+  'zoom-out': ZoomOut,
+  keyboard: Keyboard,
+  open: FolderOpen,
+  layers: Layers,
+  history: History
 }
+
+const hasTab = computed(() => !!tabs.activeTab)
 
 async function exportAll(): Promise<void> {
   const path = await api.pickSavePath({
@@ -76,33 +97,65 @@ async function exportAll(): Promise<void> {
   app.toast('数据已导出', 'success')
 }
 
-function genCode(): void {
+/** 变量解析后复制为 cURL（与响应区按钮同源逻辑） */
+async function copyAsCurl(): Promise<void> {
   const t = tabs.activeTab
-  if (!t) {
-    app.toast('没有打开的请求标签页', 'info')
-    return
+  if (!t) return
+  const payload = buildPayload(t.request, {
+    env: envs.activeEnv?.variables ?? [],
+    globals: envs.globals
+  })
+  const text = stringifyCurl(t.request, payload.url, payload.headers, t.request.body)
+  await navigator.clipboard.writeText(text)
+  app.toast('已复制为 cURL 命令', 'success')
+}
+
+function closeAllTabs(): void {
+  for (const t of [...tabs.tabs]) tabs.closeTab(t.id)
+}
+
+function shortcutGuide(): void {
+  app.modal = {
+    type: 'confirm',
+    title: '快捷键指南',
+    message: [
+      'Ctrl+Enter    发送请求 / 取消发送',
+      'Ctrl+S          保存当前请求',
+      'Ctrl+T / Ctrl+N   新建标签页',
+      'Ctrl+W          关闭标签页',
+      'Ctrl+Tab       切换标签页',
+      'Ctrl+Shift+C  网络控制台',
+      'Ctrl+= / - / 0  放大 / 缩小 / 重置缩放',
+      'F11               全屏切换',
+      'Ctrl+,           设置',
+      'F12               开发者工具'
+    ].join('\n'),
+    confirmText: '好的',
+    onOk: () => {}
   }
-  app.modal = { type: 'codegen', tabId: t.id }
 }
 
 function about(): void {
   app.modal = {
     type: 'confirm',
     title: '关于 EasyAPI',
-    message: `EasyAPI v${app.version} — 轻量、精致的桌面 API 调试工具。\n无需登录，所有数据均保存在本机。\n\n常用快捷键：\nCtrl+Enter 发送请求    Ctrl+S 保存    Ctrl+T 新建标签页\nCtrl+W 关闭标签页    Ctrl+Shift+C 控制台    Ctrl+, 设置`,
+    message: `EasyAPI v${app.version} — 轻量、精致的桌面 API 调试工具。\n无需登录，所有数据均保存在本机。\n\n常用快捷键：\nCtrl+Enter 发送请求    Ctrl+S 保存    Ctrl+T 新建标签页\nCtrl+W 关闭标签页    Ctrl+Shift+C 控制台    Ctrl+= / Ctrl+- 缩放\nF11 全屏    Ctrl+, 设置`,
     confirmText: '好的',
     onOk: () => {}
   }
 }
 
-const MENUS: Array<{ label: string; items: MenuItem[] }> = [
+/** 菜单为 computed：禁用态/勾选态随应用状态实时变化 */
+const MENUS = computed<Array<{ label: string; items: MenuItem[] }>>(() => [
   {
     label: '文件',
     items: [
       { label: '新建请求', icon: 'file-plus', hint: 'Ctrl+T', action: () => tabs.newTab() },
+      { label: '关闭标签页', icon: 'close', hint: 'Ctrl+W', disabled: !hasTab.value, action: () => tabs.activeId && tabs.closeTab(tabs.activeId) },
+      { label: '关闭所有标签页', disabled: !hasTab.value, action: closeAllTabs },
       { sep: true },
-      { label: '保存', icon: 'save', hint: 'Ctrl+S', action: () => tabs.saveActive(false) },
-      { label: '另存为…', icon: 'copy', action: () => tabs.saveActive(true) },
+      { label: '保存', icon: 'save', hint: 'Ctrl+S', disabled: !hasTab.value, action: () => tabs.saveActive(false) },
+      { label: '另存为…', icon: 'copy', disabled: !hasTab.value, action: () => tabs.saveActive(true) },
       { sep: true },
       { label: '导入…', icon: 'upload', action: () => (app.modal = { type: 'import' }) },
       { label: '导出全部数据…', icon: 'download', action: () => void exportAll() },
@@ -113,15 +166,26 @@ const MENUS: Array<{ label: string; items: MenuItem[] }> = [
   {
     label: '视图',
     items: [
+      { label: '集合', icon: 'layers', checked: app.sidebarNav === 'collections', action: () => (app.sidebarNav = 'collections') },
+      { label: '环境变量', icon: 'globe', checked: app.sidebarNav === 'envs', action: () => (app.sidebarNav = 'envs') },
+      { label: '历史记录', icon: 'history', checked: app.sidebarNav === 'history', action: () => (app.sidebarNav = 'history') },
+      { sep: true },
+      { label: '放大', icon: 'zoom-in', hint: 'Ctrl+=', action: () => api.zoomIn() },
+      { label: '缩小', icon: 'zoom-out', hint: 'Ctrl+-', action: () => api.zoomOut() },
+      { label: '重置缩放', hint: 'Ctrl+0', action: () => api.zoomReset() },
+      { sep: true },
+      { label: '全屏', icon: 'max', hint: 'F11', action: () => api.toggleFullscreen() },
       {
-        label: '切换深浅主题',
+        label: '深色主题',
         icon: 'sun',
+        checked: app.settings.theme === 'dark',
         action: () => app.updateSettings({ theme: app.settings.theme === 'dark' ? 'light' : 'dark' })
       },
       {
         label: '网络控制台',
         icon: 'terminal',
         hint: 'Ctrl+Shift+C',
+        checked: app.consoleOpen,
         action: () => (app.consoleOpen = !app.consoleOpen)
       }
     ]
@@ -129,10 +193,13 @@ const MENUS: Array<{ label: string; items: MenuItem[] }> = [
   {
     label: '工具',
     items: [
-      { label: '设置', icon: 'settings', hint: 'Ctrl+,', action: () => (app.modal = { type: 'settings' }) },
+      { label: '生成代码…', icon: 'code', disabled: !hasTab.value, action: () => hasTab.value && (app.modal = { type: 'codegen', tabId: tabs.activeId! }) },
+      { label: '复制为 cURL', icon: 'copy-curl', disabled: !hasTab.value, action: () => void copyAsCurl() },
+      { sep: true },
       { label: '管理环境变量…', icon: 'globe', action: () => (app.modal = { type: 'env', envId: null }) },
       { label: 'Cookie 管理…', icon: 'cookie', action: () => (app.modal = { type: 'cookies' }) },
-      { label: '生成代码…', icon: 'code', action: genCode }
+      { sep: true },
+      { label: '设置', icon: 'settings', hint: 'Ctrl+,', action: () => (app.modal = { type: 'settings' }) }
     ]
   },
   {
@@ -146,9 +213,14 @@ const MENUS: Array<{ label: string; items: MenuItem[] }> = [
   },
   {
     label: '帮助',
-    items: [{ label: '关于 EasyAPI', icon: 'info', action: about }]
+    items: [
+      { label: '快捷键指南', icon: 'keyboard', action: shortcutGuide },
+      { label: '打开数据文件夹', icon: 'open', action: () => api.openDataDir() },
+      { sep: true },
+      { label: '关于 EasyAPI', icon: 'info', action: about }
+    ]
   }
-]
+])
 
 const openIndex = ref(-1)
 const x = ref(0)
@@ -238,7 +310,10 @@ onBeforeUnmount(() => {
       <template v-for="(it, j) in MENUS[openIndex].items" :key="j">
         <div v-if="it.sep" class="ctx-divider" />
         <div v-else class="ctx-item" :class="{ danger: it.danger, disabled: it.disabled }" @click="run(it)">
-          <component :is="ICONS[it.icon ?? '']" v-if="it.icon && ICONS[it.icon]" :size="14" />
+          <span class="ctx-icon">
+            <Check v-if="it.checked" class="ctx-check" :size="13" />
+            <component :is="ICONS[it.icon ?? '']" v-else-if="it.icon && ICONS[it.icon]" :size="14" />
+          </span>
           <span>{{ it.label }}</span>
           <span v-if="it.hint" class="ctx-hint">{{ it.hint }}</span>
         </div>
@@ -271,5 +346,16 @@ onBeforeUnmount(() => {
 .menubar-btn.open {
   background: var(--bg-hover);
   color: var(--text);
+}
+/* 勾选态/图标统一占位，保证菜单文本对齐 */
+.ctx-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex: none;
+}
+.ctx-check {
+  color: var(--accent);
 }
 </style>

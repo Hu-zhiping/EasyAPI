@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import axios from 'axios'
 import FormData from 'form-data'
 import fs from 'node:fs'
@@ -126,11 +126,20 @@ function buildAxiosConfig(p: HttpRequestPayload) {
   }
 }
 
-export function registerRequestHandlers(): void {
+export function registerRequestHandlers(getWin: () => BrowserWindow | null): void {
+  /** 有请求在途时在任务栏图标上显示不定态进度，全部结束后清除 */
+  function updateTaskbarProgress(): void {
+    const w = getWin()
+    if (!w || w.isDestroyed()) return
+    if (pending.size > 0) w.setProgressBar(1, { mode: 'indeterminate' })
+    else w.setProgressBar(-1)
+  }
+
   ipcMain.handle('http:request', async (_e, payload: HttpRequestPayload): Promise<ResponseInfo> => {
     const start = Date.now()
     const controller = new AbortController()
     pending.set(payload.id, controller)
+    updateTaskbarProgress()
     const base: ResponseInfo = {
       id: payload.id,
       status: 0,
@@ -203,6 +212,7 @@ export function registerRequestHandlers(): void {
       }
     } finally {
       pending.delete(payload.id)
+      updateTaskbarProgress()
     }
   })
 

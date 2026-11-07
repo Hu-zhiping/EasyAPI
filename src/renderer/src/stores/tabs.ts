@@ -107,7 +107,8 @@ export const useTabsStore = defineStore('tabs', () => {
       b: { ...r.body, form: strip(r.body.form), urlencoded: strip(r.body.urlencoded) },
       a: r.auth,
       s: r.preScript ?? '',
-      t: r.tests ?? ''
+      t: r.tests ?? '',
+      d: r.description ?? ''
     })
   }
 

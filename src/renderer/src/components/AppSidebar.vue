@@ -7,8 +7,8 @@ import { useAppStore } from '../stores/app'
 const app = useAppStore()
 
 function onResizeMove(e: MouseEvent): void {
-  // 减去最左侧 48px 图标栏后的剩余宽度即侧边面板宽度
-  const w = Math.min(420, Math.max(200, e.clientX - 48))
+  // 减去最左侧 56px 活动栏后的剩余宽度即侧边面板宽度
+  const w = Math.min(420, Math.max(200, e.clientX - 56))
   app.updateSettings({ sidebarWidth: w })
 }
 

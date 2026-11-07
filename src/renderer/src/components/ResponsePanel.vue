@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import {
   Clock,
+  CloudOff,
   Database,
   Copy,
   AlertTriangle,
@@ -11,6 +12,7 @@ import {
   Info,
   Trash2,
   ChevronRight,
+  RotateCw,
   Terminal
 } from 'lucide-vue-next'
 import { useTabsStore } from '../stores/tabs'
@@ -55,6 +57,49 @@ async function copyAsCurl(): Promise<void> {
   const text = stringifyCurl(t.request, payload.url, payload.headers, t.request.body)
   await navigator.clipboard.writeText(text)
   app.toast('已复制为 cURL 命令', 'success')
+}
+
+/* ---- 错误展示：与成功响应共用头部状态条，正文区无框排版 ---- */
+const isFailed = computed(
+  () => !!tabs.activeTab?.response?.error && tabs.activeTab.response.errorCode !== 'ERR_CANCELED'
+)
+
+const TLS_CODES = new Set([
+  'EPROTO', 'ERR_TLS_CERT_ALTNAME_INVALID', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN',
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'CERT_HAS_EXPIRED', 'ERR_SSL_WRONG_VERSION_NUMBER', 'E_CERT'
+])
+
+const errHints = computed<string[]>(() => {
+  const code = tabs.activeTab?.response?.errorCode ?? ''
+  if (code === 'ENOTFOUND') {
+    return ['检查 URL 中的域名拼写是否正确', '确认本机网络已连接、代理（如有）可用', '域名较新时可能尚未生效 DNS，稍后重试']
+  }
+  if (code === 'ECONNREFUSED') {
+    return ['确认目标服务已启动并在监听', '检查端口号是否正确', '本机服务注意防火墙 / 端口放行']
+  }
+  if (code === 'ETIMEDOUT' || code === 'ECONNABORTED') {
+    return ['目标服务器长时间无响应', '可在「设置」中调大请求超时时间']
+  }
+  if (code === 'EHOSTUNREACH' || code === 'ENETUNREACH') {
+    return ['检查本机网络与路由，或确认代理设置']
+  }
+  if (code && TLS_CODES.has(code)) {
+    return ['自签名 / 私有证书可在「设置」中临时关闭 SSL 验证', '确认站点证书未过期且域名匹配']
+  }
+  return ['可打开网络控制台查看本次请求的完整记录']
+})
+
+async function copyError(): Promise<void> {
+  const t = tabs.activeTab
+  const r = t?.response
+  if (!t || !r) return
+  await navigator.clipboard.writeText(`${r.method} ${r.requestUrl}\n${r.error ?? ''}（${r.errorCode ?? 'ERROR'}，耗时 ${formatDuration(r.timeMs)}）`)
+  app.toast('错误信息已复制', 'success')
+}
+
+function retryRequest(): void {
+  const t = tabs.activeTab
+  if (t && !t.sending) void tabs.send(t.id)
 }
 
 const TABS: Array<{ value: RespSubTab; label: string }> = [
@@ -198,7 +243,7 @@ function consoleDetail(e: (typeof app.consoleLogs)[number]): string {
     <!-- 视图切换：响应结果 / 控制台 -->
     <div class="resp-viewbar">
       <div class="view-seg">
-        <button :class="{ active: !app.consoleOpen }" @click="app.consoleOpen = false">响应结果</button>
+        <button :class="{ active: !app.consoleOpen }" @click="app.consoleOpen = false">响应</button>
         <button :class="{ active: app.consoleOpen }" @click="app.consoleOpen = true">
           控制台
           <span v-if="app.consoleLogs.length" class="seg-count">{{ app.consoleLogs.length }}</span>
@@ -211,6 +256,21 @@ function consoleDetail(e: (typeof app.consoleLogs)[number]): string {
         spellcheck="false"
         placeholder="按 URL / 方法过滤…"
       />
+      <div
+        v-if="!app.consoleOpen && tabs.activeTab?.response && !isFailed"
+        class="resp-status-inline"
+      >
+        <span class="status-chip" :class="statusClass(tabs.activeTab.response.status)">
+          <span class="dot" :class="tabs.activeTab.response.ok ? 'ok' : 'warn'" />
+          {{ tabs.activeTab.response.status }}
+          <span class="st-text">{{ tabs.activeTab.response.statusText }}</span>
+        </span>
+        <span class="meta-chip"><Clock :size="12" /> {{ formatDuration(tabs.activeTab.response.timeMs) }}</span>
+        <span class="meta-chip"><Database :size="12" /> {{ formatBytes(tabs.activeTab.response.size) }}</span>
+        <span v-if="tabs.activeTab.response.truncated" class="meta-chip truncated-note">
+          <Info :size="12" /> 已截断
+        </span>
+      </div>
       <span style="flex: 1" />
       <template v-if="!app.consoleOpen">
         <button
@@ -283,39 +343,43 @@ function consoleDetail(e: (typeof app.consoleLogs)[number]): string {
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="!tabs.activeTab?.response" class="empty-center">
-        <Send :size="24" style="opacity: 0.4" />
-        <span class="big">点击「发送」或按 Ctrl+Enter 查看响应</span>
-        <span>响应内容将显示在这里</span>
+      <div v-else-if="!tabs.activeTab?.response" class="empty-center response-empty">
+        <div class="response-empty-icon"><Send :size="22" /></div>
+        <span class="big">准备调试这个接口</span>
+        <span>发送请求后，在这里查看响应体、请求头和 Cookie</span>
+        <button class="btn btn-primary btn-sm" @click="retryRequest">
+          <Send :size="12" />
+          发送请求
+        </button>
+        <span class="response-empty-kbd"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span></span>
       </div>
 
       <template v-else-if="tabs.activeTab">
-        <!-- 错误卡片 -->
-        <div v-if="tabs.activeTab.response.error && tabs.activeTab.response.errorCode !== 'ERR_CANCELED'" class="error-card">
-          <h4><AlertTriangle :size="15" /> 请求失败</h4>
-          <p>{{ tabs.activeTab.response.error }}</p>
-          <p v-if="tabs.activeTab.response.errorCode">
-            错误代码 <span class="code-tag">{{ tabs.activeTab.response.errorCode }}</span>
-            <span class="code-tag" style="margin-left: 6px">耗时 {{ formatDuration(tabs.activeTab.response.timeMs) }}</span>
-          </p>
+        <!-- 失败：Postman 风格居中静默提示（无框、无色块） -->
+        <div v-if="isFailed" class="empty-center err-center">
+          <CloudOff :size="22" style="opacity: 0.4" />
+          <span class="big">无法获取响应</span>
+          <span>{{ tabs.activeTab.response.error }}</span>
+          <span class="err-meta mono">
+            {{ tabs.activeTab.response.errorCode || 'ERROR' }} · 耗时 {{ formatDuration(tabs.activeTab.response.timeMs) }}
+          </span>
+          <div class="err-why">
+            <span class="err-why-title">可能的原因</span>
+            <span v-for="(h, i) in errHints" :key="i" class="err-why-item">{{ h }}</span>
+          </div>
+          <div class="err-center-actions">
+            <button class="btn btn-ghost btn-sm" :disabled="tabs.activeTab.sending" @click="retryRequest">
+              <RotateCw :size="12" />
+              重试
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="copyError">
+              <Copy :size="12" />
+              复制错误信息
+            </button>
+          </div>
         </div>
 
         <template v-else>
-          <div class="resp-head">
-            <span class="status-chip" :class="statusClass(tabs.activeTab.response.status)">
-              <span class="dot" :class="tabs.activeTab.response.ok ? 'ok' : 'warn'" />
-              {{ tabs.activeTab.response.status }}
-              <span style="font-family: inherit; font-weight: 500; color: var(--text-2)">
-                {{ tabs.activeTab.response.statusText }}
-              </span>
-            </span>
-            <span class="meta-chip"><Clock :size="12" /> {{ formatDuration(tabs.activeTab.response.timeMs) }}</span>
-            <span class="meta-chip"><Database :size="12" /> {{ formatBytes(tabs.activeTab.response.size) }}</span>
-            <span v-if="tabs.activeTab.response.truncated" class="meta-chip" style="color: var(--amber)">
-              <Info :size="12" /> 内容过大已截断显示
-            </span>
-            <span class="spacer" />
-          </div>
 
           <div class="resp-tabs">
             <button

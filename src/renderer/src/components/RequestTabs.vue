@@ -18,12 +18,12 @@ const autoHeaders = computed(() =>
 )
 
 const SUB_TABS: Array<{ value: ReqSubTab; label: string }> = [
-  { value: 'params', label: '参数' },
-  { value: 'headers', label: '请求头' },
+  { value: 'params', label: 'Params' },
+  { value: 'headers', label: 'Headers' },
   { value: 'body', label: 'Body' },
-  { value: 'auth', label: '授权' },
-  { value: 'pre', label: '前置脚本' },
-  { value: 'tests', label: '测试' }
+  { value: 'auth', label: 'Authorization' },
+  { value: 'pre', label: 'Pre-request Script' },
+  { value: 'tests', label: 'Tests' }
 ]
 
 const testBadge = computed(() => {
@@ -90,6 +90,7 @@ watch(
           {{ testBadge }}
         </span>
       </button>
+    <span class="req-tabs-spacer" />
   </div>
 
   <div v-if="tabs.activeTab" class="editor-area" :style="{ height: editorHeight }">

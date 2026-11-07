@@ -21,6 +21,8 @@ export function walkCollection(
 
 export function findInCollections(collections: Collection[], id: string): FoundNode | null {
   for (const c of collections) {
+    // 集合自身也参与匹配（重命名/拖入集合根等操作以集合 id 查找）
+    if (c.id === id) return { node: c, parent: null, collection: c }
     let found: FoundNode | null = null
     walkCollection(c, (node, parent) => {
       if (!found && node.id === id) found = { node, parent, collection: c }

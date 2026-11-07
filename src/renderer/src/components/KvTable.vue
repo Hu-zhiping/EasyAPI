@@ -66,6 +66,14 @@ function del(i: number): void {
 
 <template>
   <div class="kv-area">
+    <!-- 批量编辑入口置于表格右上角 -->
+    <div class="kv-head-bar">
+      <button class="link-btn" @click="bulkOpen = !bulkOpen">
+        {{ bulkOpen ? '返回表格编辑' : '批量编辑' }}
+      </button>
+      <span v-if="rows.length > 1" class="kv-count">{{ rows.length }} 行</span>
+    </div>
+
     <div v-if="!bulkOpen" class="kv-grid" :style="{ '--kv-cols': gridCols }">
       <div class="kv-thead">
         <span class="c-check" />
@@ -112,12 +120,5 @@ function del(i: number): void {
         <button class="btn btn-ghost btn-sm" @click="bulkOpen = false">取消</button>
       </div>
     </template>
-
-    <div class="kv-foot">
-      <button class="link-btn" @click="bulkOpen = !bulkOpen">
-        {{ bulkOpen ? '返回表格编辑' : '批量编辑' }}
-      </button>
-      <span v-if="rows.length > 1" class="kv-count">{{ rows.length }} 行</span>
-    </div>
   </div>
 </template>

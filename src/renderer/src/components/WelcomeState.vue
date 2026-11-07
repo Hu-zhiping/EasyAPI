@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Plus, Import, Zap, Play } from 'lucide-vue-next'
+import { Plus, Import, Zap, Play, ArrowUpRight, Braces, ShieldCheck } from 'lucide-vue-next'
 import { useTabsStore } from '../stores/tabs'
 import { useAppStore } from '../stores/app'
 import { useCollectionsStore } from '../stores/collections'
@@ -32,35 +32,55 @@ function openSample(): void {
 
 <template>
   <div class="welcome">
-    <div class="welcome-logo">
-      <Zap :size="30" />
-    </div>
-    <h1>欢迎使用 EasyAPI</h1>
-    <span class="sub">轻量、精致的接口调试工作台 · 无需登录 · 数据保存在本机</span>
+    <div class="welcome-inner">
+      <div class="welcome-brand">
+        <div class="welcome-logo"><Zap :size="24" /></div>
+        <span>EasyAPI</span>
+        <span class="welcome-version">开源 · 本地优先</span>
+      </div>
 
-    <div class="welcome-actions">
-      <button class="btn btn-primary" @click="tabs.newTab()">
-        <Plus :size="15" />
-        新建请求
-      </button>
-      <button v-if="sampleRequest" class="btn btn-outline" @click="openSample">
-        <Play :size="14" />
-        打开示例接口
-      </button>
-      <button class="btn btn-outline" @click="app.modal = { type: 'import' }">
-        <Import :size="14" />
-        导入 cURL / 集合
-      </button>
-    </div>
+      <div class="welcome-heading">
+        <h1>API 调试，简单直接。</h1>
+        <p>从一次请求开始，到集合、环境与自动化测试。</p>
+      </div>
 
-    <div class="welcome-tips">
-      <span class="kbd">Ctrl</span><span>+</span><span class="kbd">Enter</span>
-      <span>发送请求</span>
-      <span class="divider-v" />
-      <span class="kbd">Ctrl</span><span>+</span><span class="kbd">T</span>
-      <span>新建标签页</span>
-      <span class="divider-v" />
-      <span>左侧「集合」中已内置示例接口，点击即可体验</span>
+      <div class="welcome-cards">
+        <button class="welcome-card primary" @click="tabs.newTab()">
+          <span class="welcome-card-icon"><Plus :size="19" /></span>
+          <span class="welcome-card-copy">
+            <strong>新建请求</strong>
+            <small>从空白标签开始调试接口</small>
+          </span>
+          <ArrowUpRight :size="16" class="welcome-card-arrow" />
+        </button>
+        <button v-if="sampleRequest" class="welcome-card" @click="openSample">
+          <span class="welcome-card-icon"><Play :size="18" /></span>
+          <span class="welcome-card-copy">
+            <strong>体验示例</strong>
+            <small>打开可直接发送的演示接口</small>
+          </span>
+          <ArrowUpRight :size="16" class="welcome-card-arrow" />
+        </button>
+        <button class="welcome-card" @click="app.modal = { type: 'import' }">
+          <span class="welcome-card-icon"><Import :size="18" /></span>
+          <span class="welcome-card-copy">
+            <strong>导入现有工作</strong>
+            <small>支持 Postman 集合与 cURL</small>
+          </span>
+          <ArrowUpRight :size="16" class="welcome-card-arrow" />
+        </button>
+      </div>
+
+      <div class="welcome-features">
+        <span><Braces :size="13" /> 前置脚本与测试</span>
+        <span><ShieldCheck :size="13" /> 无需登录，数据仅保存在本机</span>
+      </div>
+
+      <div class="welcome-shortcuts">
+        <span><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> 发送请求</span>
+        <span><span class="kbd">Ctrl</span> + <span class="kbd">T</span> 新建标签</span>
+        <span><span class="kbd">Ctrl</span> + <span class="kbd">S</span> 保存请求</span>
+      </div>
     </div>
   </div>
 </template>

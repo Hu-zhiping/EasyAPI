@@ -35,13 +35,18 @@ export const DEFAULT_SETTINGS: Settings = {
   saveHistory: true,
   historyLimit: 100,
   sidebarWidth: 264,
-  splitRatio: 0.46
+  splitRatio: 0.46,
+  closeToTray: false
 }
 
 export const useAppStore = defineStore('app', () => {
   const settings = ref<Settings>({ ...DEFAULT_SETTINGS })
   const ready = ref(false)
   const version = ref('1.0.0')
+  /** 运行平台（来自主进程，用于平台相关 UI 分支） */
+  const platform = ref('win32')
+  /** 是否已启用开机自启（真实状态来自系统登录项） */
+  const launchAtStartup = ref(false)
   /** 侧边栏当前面板（跨组件共享，便于菜单/导入等场景切换） */
   const sidebarNav = ref<'collections' | 'envs' | 'history'>('collections')
 
@@ -120,6 +125,8 @@ export const useAppStore = defineStore('app', () => {
     settings,
     ready,
     version,
+    platform,
+    launchAtStartup,
     sidebarNav,
     modal,
     contextMenu,

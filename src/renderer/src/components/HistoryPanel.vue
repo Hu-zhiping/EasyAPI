@@ -69,13 +69,13 @@ function clearAll(): void {
   <div class="sidebar-top">
     <div class="sidebar-top-row">
       <span class="panel-title">历史记录</span>
-      <button class="icon-btn" title="清空历史" @click="clearAll">
+      <button class="icon-btn" title="清空历史" aria-label="清空历史" @click="clearAll">
         <Trash2 :size="15" />
       </button>
     </div>
     <div class="search-box">
       <Search :size="13" />
-      <input v-model="kw" placeholder="搜索历史请求" spellcheck="false" />
+      <input v-model="kw" aria-label="搜索历史请求" placeholder="搜索历史请求" spellcheck="false" />
     </div>
   </div>
 
@@ -87,22 +87,35 @@ function clearAll(): void {
           v-for="e in g.items"
           :key="e.id"
           class="hist-row"
-          :title="e.url"
+          :title="`${e.method} ${e.url}\n${e.status || '请求失败'} · ${formatDuration(e.durationMs)} · ${formatTime(e.at)}`"
+          role="button"
+          tabindex="0"
+          :aria-label="`重新发送 ${e.method} ${e.url}`"
           @click="replayEntry(e.id)"
+          @keydown.enter.prevent="replayEntry(e.id)"
+          @keydown.space.prevent="replayEntry(e.id)"
           @contextmenu="rowMenu($event, e.id, e.url)"
         >
-          <span class="chip method-chip" style="width: 52px; font-size: 10px" :class="methodClass(e.method)">
+          <span class="chip method-chip" :class="methodClass(e.method)">
             {{ e.method }}
           </span>
-          <span class="hist-url">{{ shortUrl(e.url) }}</span>
-          <span class="hist-meta">
-            <span class="dot" :class="e.ok ? 'ok' : e.status ? 'warn' : 'err'" />
-            <span v-if="e.status">{{ e.status }}</span>
-            <span v-else>失败</span>
-            <span>{{ formatDuration(e.durationMs) }}</span>
-            <span>{{ formatTime(e.at) }}</span>
+          <span class="hist-main">
+            <span class="hist-line">
+              <span class="hist-meta">
+                <span class="dot" :class="e.ok ? 'ok' : e.status ? 'warn' : 'err'" />
+                <span class="hist-status" :class="statusClass(e.status)">{{ e.status || '失败' }}</span>
+                <span class="hist-duration">{{ formatDuration(e.durationMs) }}</span>
+              </span>
+              <time class="hist-time" :datetime="e.at">{{ formatTime(e.at) }}</time>
+            </span>
+            <span class="hist-url">{{ shortUrl(e.url) }}</span>
           </span>
-          <button class="icon-btn tree-kebab" title="删除该记录" @click.stop="history.remove(e.id)">
+          <button
+            class="icon-btn tree-kebab hist-delete"
+            title="删除该记录"
+            aria-label="删除该记录"
+            @click.stop="history.remove(e.id)"
+          >
             <Trash2 :size="13" />
           </button>
         </div>

@@ -57,7 +57,7 @@ async function pickBinary(): Promise<void> {
 </script>
 
 <template>
-  <div v-if="tabs.activeTab">
+  <div v-if="tabs.activeTab" class="body-pane">
     <div class="body-toolbar">
       <div class="body-mode-seg">
         <button
@@ -107,7 +107,7 @@ async function pickBinary(): Promise<void> {
         </template>
       </div>
     </div>
-    <div v-else-if="tabs.activeTab.request.body.mode === 'raw'" class="code-host" style="margin: 8px 14px 12px; height: 220px; flex: none; border: 1px solid var(--border); border-radius: 8px; overflow: hidden">
+    <div v-else-if="tabs.activeTab.request.body.mode === 'raw'" class="code-host raw-host">
       <CodeEditor
         v-model="tabs.activeTab.request.body.rawContent"
         :language="tabs.activeTab.request.body.rawLanguage as RawLanguage"
@@ -118,3 +118,21 @@ async function pickBinary(): Promise<void> {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 面板根节点：撑满编辑区可用高度（父级 .editor-scroll 为确定高度的滚动容器） */
+.body-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+/* raw 编辑器：填满剩余高度，替代原先写死的 220px */
+.raw-host {
+  flex: 1;
+  min-height: 200px;
+  margin: 8px 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+</style>

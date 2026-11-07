@@ -2,13 +2,21 @@ appId: com.easyapi.desktop
 productName: EasyAPI
 files:
   - out/**
+# 托盘图标（打包后位于 resources/icon.png，由主进程按 process.resourcesPath 读取）
+extraResources:
+  - from: build/icon.png
+    to: icon.png
 asar: true
 win:
   target: nsis
   icon: build/icon.ico
+  artifactName: EasyAPI-Setup-${version}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: EasyAPI
+  uninstallDisplayName: EasyAPI ${version}
+  # 卸载保留用户数据（集合/环境/历史），避免误升级卸载丢数据
+  deleteAppDataOnUninstall: false
   artifactName: EasyAPI-Setup-${version}.${ext}

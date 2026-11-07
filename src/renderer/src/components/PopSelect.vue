@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
       :style="{ left: x + 'px', top: y + 'px', width: width ? width + 'px' : undefined }"
     >
       <template v-for="o in options" :key="o.value">
-        <div v-if="o.value === '__sep'" class="pop-sep" />
+        <div v-if="o.value.startsWith('__sep')" class="pop-sep" />
         <div v-else-if="o.value === '__label'" class="pop-label">{{ o.label }}</div>
         <div v-else class="pop-item" :class="{ selected: o.value === modelValue }" @click="pick(o.value)">
           <span v-if="o.color" class="dot" :style="{ background: o.color }" />

@@ -50,6 +50,8 @@ export interface RequestDef {
   preScript: string
   /** 测试脚本（断言）：响应返回后执行，用 pm.test / pm.response 校验结果 */
   tests: string
+  /** 请求描述（接口说明，保存在请求上） */
+  description?: string
 }
 
 export interface RequestNode extends RequestDef {
@@ -144,6 +146,19 @@ export interface Settings {
   historyLimit: number
   sidebarWidth: number
   splitRatio: number
+  /** 关闭窗口时最小化到系统托盘而不是退出 */
+  closeToTray: boolean
+}
+
+/** 窗口几何状态（由主进程维护，用于重启后还原） */
+export interface WindowState {
+  x?: number
+  y?: number
+  width: number
+  height: number
+  maximized: boolean
+  fullscreen: boolean
+  zoomFactor: number
 }
 
 export type ReqSubTab = 'params' | 'headers' | 'body' | 'auth' | 'pre' | 'tests'
@@ -200,6 +215,7 @@ export interface AppData {
   settings: Settings
   sessionTabs: PersistedTab[]
   cookies: CookieItem[]
+  windowState?: WindowState
 }
 
 export interface PersistedTab {
@@ -258,7 +274,9 @@ export interface RendererApi {
   readFile(path: string): Promise<string>
   writeFile(req: { path: string; content: string; encoding?: 'utf8' | 'base64' }): Promise<void>
   openExternal(url: string): void
-  appInfo(): Promise<{ version: string; platform: string }>
+  /** 在系统资源管理器中打开应用数据目录 */
+  openDataDir(): void
+  appInfo(): Promise<AppInfo>
   winMinimize(): void
   winToggleMaximize(): void
   winClose(): void
@@ -266,4 +284,22 @@ export interface RendererApi {
   onMaximized(cb: (v: boolean) => void): () => void
   /** 设置窗口标题（任务栏同步显示） */
   setWindowTitle(title: string): void
+  /** 显示并聚焦主窗口（托盘恢复等场景） */
+  winShow(): void
+  /** 界面缩放（含任务栏快捷键 Ctrl+= / Ctrl+- / Ctrl+0） */
+  zoomIn(): void
+  zoomOut(): void
+  zoomReset(): void
+  toggleFullscreen(): void
+  /** 更新原生标题栏叠加按钮配色（跟随主题） */
+  setTitleBarOverlay(opts: { color: string; symbolColor: string }): void
+  /** 开机自启（写入当前用户登录项），返回生效状态 */
+  setLaunchAtStartup(enabled: boolean): Promise<boolean>
+}
+
+export interface AppInfo {
+  version: string
+  platform: string
+  /** 是否已启用开机自启 */
+  launchAtStartup: boolean
 }

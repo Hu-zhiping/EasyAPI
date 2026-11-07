@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { CheckCircle2, XCircle } from 'lucide-vue-next'
-import CodeEditor from './CodeEditor.vue'
+import { computed, ref } from 'vue'
+import { CheckCircle2, PanelRightClose, PanelRightOpen, XCircle, Zap } from 'lucide-vue-next'
+import MonacoScriptEditor from './MonacoScriptEditor.vue'
 import { useTabsStore } from '../stores/tabs'
+import { SNIPPETS_TEST } from '../lib/scriptSnippets'
 
 const tabs = useTabsStore()
 
@@ -15,28 +16,42 @@ const code = computed({
 
 const results = computed(() => tabs.activeTab?.testResults ?? null)
 const passedCount = computed(() => results.value?.filter((r) => r.passed).length ?? 0)
+
+const editorRef = ref<InstanceType<typeof MonacoScriptEditor> | null>(null)
+const snippetsOpen = ref(true)
+
+function insertSnippet(snippetCode: string): void {
+  editorRef.value?.insertAtCursor(snippetCode)
+}
 </script>
 
 <template>
   <div v-if="tabs.activeTab" class="tests-wrap">
     <div class="script-toolbar">
       <span class="script-badge">JS</span>
-      <span class="script-hint">
-        响应返回后执行。用
-        <code>pm.test('名称', () => { ... })</code>
-        注册断言；
-        <code>pm.response.code / json() / headers.get()</code>
-        读取响应，
-        <code>pm.expect(x).to.eql(y)</code>
-        校验值。失败项会标红展示。
-      </span>
+      <button class="icon-btn script-sn-toggle" :title="snippetsOpen ? '收起代码片段' : '展开代码片段'" @click="snippetsOpen = !snippetsOpen">
+        <PanelRightClose v-if="snippetsOpen" :size="14" />
+        <PanelRightOpen v-else :size="14" />
+      </button>
     </div>
-    <div class="tests-editor">
-      <CodeEditor
-        v-model="code"
-        language="javascript"
-        placeholder="// 例如：&#10;pm.test('状态码为 200', () => {&#10;  pm.response.to.have.status(200)&#10;})&#10;pm.test('返回了用户名', () => {&#10;  const data = pm.response.json()&#10;  pm.expect(data.name).to.eql('EasyAPI')&#10;})"
-      />
+    <div class="script-body">
+      <div class="tests-editor">
+        <MonacoScriptEditor
+          ref="editorRef"
+          v-model="code"
+        />
+      </div>
+      <aside v-if="snippetsOpen" class="snippets">
+        <div class="snippets-head">
+          <Zap :size="11" />
+          代码片段
+        </div>
+        <div class="snippets-scroll">
+          <button v-for="s in SNIPPETS_TEST" :key="s.title" class="snippet-item" :title="s.code" @click="insertSnippet(s.code)">
+            {{ s.title }}
+          </button>
+        </div>
+      </aside>
     </div>
     <div v-if="results?.length" class="test-results selectable">
       <div class="tr-summary" :class="passedCount === results.length ? 'ok' : 'fail'">
@@ -51,3 +66,10 @@ const passedCount = computed(() => results.value?.filter((r) => r.passed).length
     </div>
   </div>
 </template>
+
+<style scoped>
+.script-sn-toggle {
+  flex: none;
+  margin-left: auto;
+}
+</style>

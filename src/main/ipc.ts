@@ -7,7 +7,16 @@ function toDialogFilters(filters?: FileFilter[]): { name: string; extensions: st
   return (filters ?? []).map((f) => ({ name: f.name, extensions: f.extensions }))
 }
 
-export function registerIpc(store: DataStore, getWin: () => BrowserWindow | null): void {
+/** 渲染层可触发的窗口行为（实现位于 index.ts） */
+export interface WindowActions {
+  showWindow(): void
+  zoomIn(): void
+  zoomOut(): void
+  zoomReset(): void
+  toggleFullscreen(): void
+}
+
+export function registerIpc(store: DataStore, getWin: () => BrowserWindow | null, actions: WindowActions): void {
   ipcMain.handle('store:load', () => store.load())
   ipcMain.handle('store:patch', (_e, patch: Partial<AppData>) => {
     store.patch(patch)
@@ -49,7 +58,22 @@ export function registerIpc(store: DataStore, getWin: () => BrowserWindow | null
     if (/^https?:\/\//i.test(url)) shell.openExternal(url)
   })
 
-  ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform }))
+  ipcMain.handle('shell:openDataDir', () => {
+    void shell.openPath(app.getPath('userData'))
+  })
+
+  ipcMain.handle('app:info', () => ({
+    version: app.getVersion(),
+    platform: process.platform,
+    launchAtStartup: app.getLoginItemSettings().openAtLogin
+  }))
+
+  ipcMain.handle('app:setLaunchAtStartup', (_e, enabled: boolean) => {
+    // 开发态注册的是 electron 开发版可执行文件，禁止写入登录项
+    if (!app.isPackaged) return false
+    app.setLoginItemSettings({ openAtLogin: !!enabled, args: ['--hidden'] })
+    return app.getLoginItemSettings().openAtLogin
+  })
 
   ipcMain.handle('win:isMaximized', () => getWin()?.isMaximized() ?? false)
   ipcMain.on('win:minimize', () => getWin()?.minimize())
@@ -60,6 +84,20 @@ export function registerIpc(store: DataStore, getWin: () => BrowserWindow | null
     else win.maximize()
   })
   ipcMain.on('win:close', () => getWin()?.close())
+  ipcMain.on('win:show', () => actions.showWindow())
+  ipcMain.on('win:zoomIn', () => actions.zoomIn())
+  ipcMain.on('win:zoomOut', () => actions.zoomOut())
+  ipcMain.on('win:zoomReset', () => actions.zoomReset())
+  ipcMain.on('win:toggleFullscreen', () => actions.toggleFullscreen())
+  ipcMain.on('win:setTitleBarOverlay', (_e, opts: { color: string; symbolColor: string }) => {
+    const win = getWin()
+    if (!win || win.isDestroyed()) return
+    try {
+      win.setTitleBarOverlay({ color: String(opts.color), symbolColor: String(opts.symbolColor) })
+    } catch {
+      /* 平台不支持原生叠加按钮时忽略 */
+    }
+  })
   ipcMain.on('win:setTitle', (_e, title: string) => {
     const t = String(title).slice(0, 90)
     getWin()?.setTitle(t || 'EasyAPI')

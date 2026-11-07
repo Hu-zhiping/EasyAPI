@@ -20,6 +20,15 @@ const themeOptions = [
 
 const resetting = ref(false)
 
+async function toggleLaunchAtStartup(): Promise<void> {
+  const next = !app.launchAtStartup
+  try {
+    app.launchAtStartup = await api.setLaunchAtStartup(next)
+  } catch {
+    app.toast('设置开机自启失败', 'error')
+  }
+}
+
 async function exportData(): Promise<void> {
   const path = await api.pickSavePath({
     title: '导出全部数据',
@@ -52,6 +61,22 @@ function doReset(): void {
 
 <template>
   <ModalShell title="设置" :width="520" @close="app.modal = null">
+    <h3 class="sec">窗口与启动</h3>
+    <div class="form-row">
+      <label>关闭到托盘</label>
+      <span
+        class="switch"
+        :class="{ on: app.settings.closeToTray }"
+        @click="app.updateSettings({ closeToTray: !app.settings.closeToTray })"
+      />
+      <span class="unit">点击关闭按钮时驻留系统托盘，点击托盘图标恢复</span>
+    </div>
+    <div class="form-row">
+      <label>开机自启</label>
+      <span class="switch" :class="{ on: app.launchAtStartup }" @click="toggleLaunchAtStartup" />
+      <span class="unit">登录系统后自动启动并最小化到托盘</span>
+    </div>
+
     <h3 class="sec">外观</h3>
     <div class="form-row">
       <label>界面主题</label>

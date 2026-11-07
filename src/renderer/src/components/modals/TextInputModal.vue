@@ -28,13 +28,19 @@ function ok(): void {
   modal.onOk(v)
   app.modal = null
 }
+
+/** 输入法组合中（选词的 Enter）不触发确认 */
+function enterOk(e: KeyboardEvent): void {
+  if (e.isComposing || e.keyCode === 229) return
+  ok()
+}
 </script>
 
 <template>
   <ModalShell :title="modal.title" :width="420" @close="app.modal = null">
     <div class="form-row" style="margin-bottom: 0">
       <label>{{ modal.label }}</label>
-      <input ref="inputEl" v-model="value" class="input" spellcheck="false" @keydown.enter="ok" />
+      <input ref="inputEl" v-model="value" class="input" spellcheck="false" @keydown.enter="enterOk" />
     </div>
     <template #footer>
       <button class="btn btn-ghost" @click="app.modal = null">取消</button>

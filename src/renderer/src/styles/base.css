@@ -39,21 +39,22 @@
   --shadow-tip: 0 4px 14px rgba(0, 0, 0, 0.3);
   --mask: rgba(0, 0, 0, 0.55);
   --code-bg: #131315;
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
   font-size: 13px;
 }
 
 :root[data-theme='light'] {
-  --bg: #f2f3f5;
+  --bg: #f5f6f8;
   --bg-panel: #ffffff;
   --bg-elev: #ffffff;
-  --bg-hover: #eef0f3;
-  --bg-active: #e5e8ee;
-  --bg-inset: #f6f7f9;
-  --border: #e3e5ea;
-  --border-strong: #cfd3db;
-  --text: #20222a;
-  --text-2: #5d606c;
-  --text-3: #9a9dab;
+  --bg-hover: #f0f2f5;
+  --bg-active: #e9edf2;
+  --bg-inset: #f8f9fb;
+  --border: #e4e7ec;
+  --border-strong: #d0d5dd;
+  --text: #1f2329;
+  --text-2: #4e5969;
+  --text-3: #86909c;
   --accent: #f0521d;
   --accent-hover: #ff6c37;
   --accent-soft: rgba(240, 82, 29, 0.09);
@@ -81,6 +82,7 @@
   --shadow-tip: 0 4px 14px rgba(20, 24, 40, 0.12);
   --mask: rgba(15, 18, 30, 0.4);
   --code-bg: #f8f9fb;
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* ============ 基础 ============ */
@@ -643,6 +645,12 @@ input[type='radio']:checked {
 .empty-center .big {
   font-size: 13.5px;
   color: var(--text-2);
+}
+/* 空状态内的引导操作（新建 / 导入） */
+.empty-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .spin {

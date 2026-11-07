@@ -69,7 +69,16 @@ function newCollection(): void {
     <div v-else class="empty-center" style="padding: 40px 14px">
       <FolderOpen :size="26" style="opacity: 0.4" />
       <span class="big">还没有集合</span>
-      <span style="text-align: center; line-height: 1.6">点击右上角 + 新建集合<br />或使用导入功能</span>
+      <div class="empty-actions">
+        <button class="btn btn-outline btn-sm" @click="newCollection">
+          <Plus :size="13" />
+          新建集合
+        </button>
+        <button class="btn btn-ghost btn-sm" @click="app.modal = { type: 'import' }">
+          <Import :size="13" />
+          导入
+        </button>
+      </div>
     </div>
   </div>
 </template>

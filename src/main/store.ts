@@ -2,7 +2,7 @@ import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import type { AppData, Collection, RequestDef } from '../shared/types'
+import type { AppData, Collection, RequestDef, Settings } from '../shared/types'
 
 const uid = (): string => crypto.randomUUID()
 
@@ -88,7 +88,8 @@ function defaultData(): AppData {
       saveHistory: true,
       historyLimit: 100,
       sidebarWidth: 264,
-      splitRatio: 0.46
+      splitRatio: 0.46,
+      closeToTray: false
     },
     sessionTabs: [],
     cookies: []
@@ -135,6 +136,11 @@ export class DataStore {
 
   load(): AppData {
     return this.data
+  }
+
+  /** 主进程实时读取设置（渲染层修改经 patch 落到同一份内存数据） */
+  getSettings(): Settings {
+    return this.data.settings
   }
 
   patch(p: Partial<AppData>): void {

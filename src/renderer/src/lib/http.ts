@@ -115,9 +115,10 @@ export type HttpRequestCore = Omit<
 export function buildPayload(req: RequestDef, ctx: ResolveCtx): HttpRequestCore {
   const lookup = makeLookup([...(ctx.runtime ? [ctx.runtime] : []), ctx.env, ctx.globals])
 
-  let url = req.url.trim()
-  if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url
-  url = interpolate(url, lookup)
+  // 先插值再补协议：变量值可能自带 http(s)://（如 {{baseUrl}}/path），先补协议会拼出
+  // https://http://host 的坏 URL；插值后仍无协议的裸域名才默认补 https://
+  let url = interpolate(req.url.trim(), lookup)
+  if (url && !/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) url = 'https://' + url
 
   const headers: Record<string, string> = {}
   const seen = new Set<string>()

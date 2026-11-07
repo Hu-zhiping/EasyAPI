@@ -5,9 +5,9 @@ import ModalShell from '../ModalShell.vue'
 import { useAppStore } from '../../stores/app'
 import { useCollectionsStore } from '../../stores/collections'
 import { useTabsStore } from '../../stores/tabs'
-import { findInCollections } from '../../lib/tree'
+import { countRequests, findInCollections } from '../../lib/tree'
 import { expandedIds } from '../../stores/uiState'
-import type { FolderNode } from '../../../../shared/types'
+import type { CollectionNode, FolderNode } from '../../../../shared/types'
 
 const app = useAppStore()
 const cols = useCollectionsStore()
@@ -25,23 +25,27 @@ interface LocationItem {
   label: string
   depth: number
   icon: 'collection' | 'folder' | 'new'
+  count?: number
 }
 
 const NEW_KEY = '__new__'
 
 const locations = computed<LocationItem[]>(() => {
-  const out: LocationItem[] = [{ key: NEW_KEY, collectionId: '', parentId: null, label: '新建集合…', depth: 0, icon: 'new' }]
+  // 现有集合/文件夹在前；「创建新集合」压到最底并用分隔线隔离，
+  // 避免与集合重名混淆、或被误当作默认保存位置（同名集合用计数区分）
+  const out: LocationItem[] = []
   for (const c of cols.collections) {
-    out.push({ key: `${c.id}::`, collectionId: c.id, parentId: null, label: c.name, depth: 0, icon: 'collection' })
-    const walk = (nodes: FolderNode[], depth: number): void => {
+    out.push({ key: `${c.id}::`, collectionId: c.id, parentId: null, label: c.name, depth: 0, icon: 'collection', count: countRequests(c) })
+    const walk = (nodes: CollectionNode[], depth: number): void => {
       for (const n of nodes) {
         if (n.type !== 'folder') continue
-        out.push({ key: `${c.id}::${n.id}`, collectionId: c.id, parentId: n.id, label: n.name, depth, icon: 'folder' })
-        walk(n.children.filter((x): x is FolderNode => x.type === 'folder'), depth + 1)
+        out.push({ key: `${c.id}::${n.id}`, collectionId: c.id, parentId: n.id, label: n.name, depth, icon: 'folder', count: countRequests(n) })
+        walk(n.children, depth + 1)
       }
     }
-    walk(c.children.filter((x): x is FolderNode => x.type === 'folder'), 1)
+    walk(c.children, 1)
   }
+  out.push({ key: NEW_KEY, collectionId: '', parentId: null, label: '创建新集合…', depth: 0, icon: 'new' })
   return out
 })
 
@@ -58,6 +62,12 @@ const selected = ref(defaultKey.value)
 const newColName = ref('新建集合')
 
 const isNew = computed(() => selected.value === NEW_KEY)
+
+/** 输入法组合中（选词的 Enter）不触发保存 */
+function enterSave(e: KeyboardEvent): void {
+  if (e.isComposing || e.keyCode === 229) return
+  save()
+}
 
 function save(): void {
   if (!tab) return
@@ -88,7 +98,7 @@ function save(): void {
   <ModalShell title="保存请求" :width="480" @close="app.modal = null">
     <div class="form-row">
       <label>请求名称</label>
-      <input v-model="name" class="input" spellcheck="false" @keydown.enter="save" />
+      <input v-model="name" class="input" spellcheck="false" @keydown.enter="enterSave" />
     </div>
     <div class="form-row" style="align-items: flex-start; margin-bottom: 0">
       <label style="padding-top: 5px">保存位置</label>
@@ -97,15 +107,16 @@ function save(): void {
           v-for="loc in locations"
           :key="loc.key"
           class="loc-row"
+          :class="{ selected: selected === loc.key, 'new-item': loc.icon === 'new' }"
           :style="{ paddingLeft: 8 + loc.depth * 16 + 'px' }"
-          :class="{ selected: selected === loc.key }"
           @click="selected = loc.key"
         >
-          <span class="radio-dot" :class="{ checked: selected === loc.key }" />
+          <span v-if="loc.icon !== 'new'" class="radio-dot" :class="{ checked: selected === loc.key }" />
+          <Plus v-else :size="13" style="color: var(--accent)" />
           <Folder v-if="loc.icon === 'folder'" :size="13" style="color: var(--text-3)" />
-          <Plus v-else-if="loc.icon === 'new'" :size="13" style="color: var(--accent)" />
-          <FilePlus2 v-else :size="13" style="color: var(--text-3)" />
-          <span>{{ loc.label }}</span>
+          <FilePlus2 v-else-if="loc.icon === 'collection'" :size="13" style="color: var(--text-3)" />
+          <span class="loc-label">{{ loc.label }}</span>
+          <span v-if="loc.icon !== 'new' && loc.count" class="loc-count">{{ loc.count }} 项</span>
         </div>
       </div>
     </div>
@@ -124,7 +135,7 @@ function save(): void {
 <style scoped>
 .loc-list {
   flex: 1;
-  max-height: 220px;
+  max-height: 240px;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -147,6 +158,39 @@ function save(): void {
 }
 .loc-row.selected {
   color: var(--text);
+  background: var(--accent-soft);
+}
+.loc-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 同名集合用已有请求数区分 */
+.loc-count {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--text-3);
+  background: var(--bg-active);
+  border-radius: 8px;
+  padding: 0 6px;
+  line-height: 15px;
+}
+.loc-row.selected .loc-count {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+/* 「创建新集合」入口：置于列表末尾，与现有目标明确区隔 */
+.loc-row.new-item {
+  margin-top: 4px;
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 5px 5px;
+  color: var(--text-3);
+}
+.loc-row.new-item:hover,
+.loc-row.new-item.selected {
+  color: var(--accent);
   background: var(--accent-soft);
 }
 </style>

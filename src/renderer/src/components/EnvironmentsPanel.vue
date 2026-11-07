@@ -14,6 +14,11 @@ function editEnv(id: string | null): void {
   app.modal = { type: 'env', envId: id }
 }
 
+/** 一键新建：打开环境管理器并直接创建待命名的环境 */
+function quickCreateEnv(): void {
+  app.modal = { type: 'env', envId: '__new__' }
+}
+
 function deleteEnv(id: string, name: string): void {
   app.modal = {
     type: 'confirm',
@@ -66,7 +71,7 @@ function globalsMenu(e: MouseEvent): void {
   <div class="sidebar-top">
     <div class="sidebar-top-row">
       <span class="panel-title">环境变量</span>
-      <button class="icon-btn" title="新建环境" @click="editEnv(null)">
+      <button class="icon-btn" title="新建环境" @click="quickCreateEnv">
         <Plus :size="17" />
       </button>
     </div>
